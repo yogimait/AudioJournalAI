@@ -227,10 +227,10 @@ export async function initSTTModel(): Promise<void> {
     };
 
     const model = {
-      id: "whisper-base-en-int8",
-      encoder: "/models/base.en-encoder.int8.onnx",
-      decoder: "/models/base.en-decoder.int8.onnx",
-      tokens: "/models/base.en-tokens.txt",
+      id: "whisper-tiny-encoder-decoder-txt",
+      encoder: "/models/whisper-tiny-encoder.onnx",
+      decoder: "/models/whisper-tiny-decoder.onnx",
+      tokens: "/models/whisper-tiny-tokens.txt",
     };
 
     const [hasEncoder, hasDecoder, hasTokens] = await Promise.all([

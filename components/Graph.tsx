@@ -108,6 +108,7 @@ export default function Graph({ entries }: GraphProps) {
   const emotionData = getEmotionChartData(entries);
   const emotionRadarData = getEmotionRadarData(entries);
   const heatmapData = getActivityHeatmapData(entries);
+  const emotionBarPalette = ["#f8d89c", "#f4c274", "#eead56", "#e3973d", "#d5852f", "#be6d1f"];
 
   if (entries.length === 0) {
     return (
@@ -120,7 +121,7 @@ export default function Graph({ entries }: GraphProps) {
   }
 
   return (
-    <div className="graphs-shard-container">
+    <div className="insights-bento-grid">
       <svg style={{ width: 0, height: 0, position: 'absolute' }} aria-hidden="true" focusable="false">
         <defs>
           <filter id="glowPath" x="-50%" y="-50%" width="200%" height="200%">
@@ -134,9 +135,9 @@ export default function Graph({ entries }: GraphProps) {
       </svg>
 
       {/* Mood Over Time */}
-      <div className="glass-shard-card graph-section">
-        <h3 className="solidified-light-title" style={{ fontSize: '1.6rem' }}>Mood Over Time</h3>
-        <p className="glowing-numbers-text" style={{ fontSize: '0.9rem', marginBottom: '32px' }}>
+      <div className="glass-shard-card graph-section bento-card bento-card-mood">
+        <h3 className="bento-card-title">Mood Over Time</h3>
+        <p className="bento-card-subtitle">
           How your overall sentiment has changed
         </p>
         <div className="wireframe-graph-container">
@@ -150,7 +151,7 @@ export default function Graph({ entries }: GraphProps) {
               </defs>
               <CartesianGrid
                 strokeDasharray="2 6"
-                stroke="rgba(100, 200, 255, 0.15)"
+                stroke="rgba(255, 205, 120, 0.18)"
                 vertical={true}
                 horizontal={true}
               />
@@ -187,9 +188,9 @@ export default function Graph({ entries }: GraphProps) {
       </div>
 
       {/* Emotion Frequency */}
-      <div className="glass-shard-card graph-section">
-        <h3 className="solidified-light-title" style={{ fontSize: '1.6rem' }}>Emotion Frequency</h3>
-        <p className="glowing-numbers-text" style={{ fontSize: '0.9rem', marginBottom: '32px' }}>
+      <div className="glass-shard-card graph-section bento-card bento-card-emotion">
+        <h3 className="bento-card-title">Emotion Frequency</h3>
+        <p className="bento-card-subtitle">
           Your most commonly experienced feelings
         </p>
         <div className="crystal-graph-container">
@@ -197,7 +198,7 @@ export default function Graph({ entries }: GraphProps) {
             <BarChart data={emotionData} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
               <CartesianGrid
                 strokeDasharray="2 6"
-                stroke="rgba(100, 200, 255, 0.1)"
+                stroke="rgba(255, 205, 120, 0.12)"
                 vertical={false}
               />
               <XAxis
@@ -221,8 +222,8 @@ export default function Graph({ entries }: GraphProps) {
                 maxBarSize={50}
                 style={{ filter: "drop-shadow(0 6px 12px rgba(0,0,0,0.6))" }}
               >
-                {emotionData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                {emotionData.map((_, index) => (
+                  <Cell key={`cell-${index}`} fill={emotionBarPalette[index % emotionBarPalette.length]} />
                 ))}
               </Bar>
             </BarChart>
@@ -230,68 +231,66 @@ export default function Graph({ entries }: GraphProps) {
         </div>
       </div>
 
-      <div className="graphs-row-container">
-        {/* Emotion Radar */}
-        <div className="glass-shard-card graph-section" style={{ flex: 1 }}>
-          <h3 className="solidified-light-title" style={{ fontSize: '1.4rem' }}>Emotion Balance Radar</h3>
-          <p className="glowing-numbers-text" style={{ fontSize: '0.8rem', marginBottom: '24px' }}>
-            A quick view of how your emotions are distributed
-          </p>
-          <div className="radar-graph-container">
-            <ResponsiveContainer width="100%" height={260}>
-              <RadarChart data={emotionRadarData} outerRadius="65%">
-                <PolarGrid stroke="rgba(100, 200, 255, 0.15)" />
-                <PolarAngleAxis
-                  dataKey="emotion"
-                  tick={{ fontSize: 11, fill: "#c9b095", fontWeight: 500 }}
-                />
-                <PolarRadiusAxis
-                  angle={30}
-                  domain={[0, 100]}
-                  tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Radar
-                  name="Emotions"
-                  dataKey="value"
-                  stroke="#1E90FF"
-                  fill="#1E90FF"
-                  fillOpacity={0.25}
-                  strokeWidth={2}
-                  style={{ filter: 'drop-shadow(0 0 10px rgba(30, 144, 255, 0.6))' }}
-                />
-                <Tooltip content={<RadarTooltip />} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
+      {/* Emotion Radar */}
+      <div className="glass-shard-card graph-section bento-card bento-card-radar">
+        <h3 className="bento-card-title bento-card-title-small">Emotion Balance Radar</h3>
+        <p className="bento-card-subtitle bento-card-subtitle-small">
+          A quick view of how your emotions are distributed
+        </p>
+        <div className="radar-graph-container">
+          <ResponsiveContainer width="100%" height={260}>
+            <RadarChart data={emotionRadarData} outerRadius="65%">
+              <PolarGrid stroke="rgba(255, 205, 120, 0.2)" />
+              <PolarAngleAxis
+                dataKey="emotion"
+                tick={{ fontSize: 11, fill: "#c9b095", fontWeight: 500 }}
+              />
+              <PolarRadiusAxis
+                angle={30}
+                domain={[0, 100]}
+                tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Radar
+                name="Emotions"
+                dataKey="value"
+                stroke="#f0b85c"
+                fill="#f0b85c"
+                fillOpacity={0.26}
+                strokeWidth={2}
+                style={{ filter: 'drop-shadow(0 0 10px rgba(240, 184, 92, 0.55))' }}
+              />
+              <Tooltip content={<RadarTooltip />} />
+            </RadarChart>
+          </ResponsiveContainer>
         </div>
+      </div>
 
-        {/* Activity Heatmap */}
-        <div className="glass-shard-card graph-section" style={{ flex: 1 }}>
-          <h3 className="solidified-light-title" style={{ fontSize: '1.4rem' }}>Journaling Heatmap</h3>
-          <p className="glowing-numbers-text" style={{ fontSize: '0.8rem', marginBottom: '24px' }}>
-            Recent activity density over the last 4 weeks
-          </p>
-          <div className="wireframe-graph-container">
-            <div className="heatmap-grid nebula-heatmap">
-              {heatmapData.map((day) => (
-                <div
-                  key={day.date}
-                  className={`heatmap-cell nebula-level-${day.level}`}
-                  title={`${day.label}: ${day.count} ${day.count === 1 ? "entry" : "entries"}`}
-                />
+      {/* Activity Heatmap */}
+      <div className="glass-shard-card graph-section bento-card bento-card-heatmap">
+        <h3 className="bento-card-title bento-card-title-small">Journaling Heatmap</h3>
+        <p className="bento-card-subtitle bento-card-subtitle-small">
+          Recent activity density over the last 4 weeks
+        </p>
+        <div className="wireframe-graph-container">
+          <div className="heatmap-grid nebula-heatmap">
+            {heatmapData.map((day) => (
+              <div
+                key={day.date}
+                className={`heatmap-cell nebula-level-${day.level}`}
+                title={`${day.label}: ${day.count} ${day.count === 1 ? "entry" : "entries"}`}
+              />
+            ))}
+          </div>
+          <div className="heatmap-legend nebula-legend">
+            <span className="glass-shard-time">Zero Density</span>
+            <div className="heatmap-legend-scale">
+              {[0, 1, 2, 3, 4].map((level) => (
+                <span key={level} className={`heatmap-cell nebula-level-${level}`} />
               ))}
             </div>
-            <div className="heatmap-legend nebula-legend">
-              <span className="glass-shard-time">Zero Density</span>
-              <div className="heatmap-legend-scale">
-                {[0, 1, 2, 3, 4].map((level) => (
-                  <span key={level} className={`heatmap-cell nebula-level-${level}`} />
-                ))}
-              </div>
-              <span className="glass-shard-time">High Density</span>
-            </div>
+            <span className="glass-shard-time">High Density</span>
           </div>
         </div>
       </div>

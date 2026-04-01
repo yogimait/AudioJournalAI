@@ -2054,6 +2054,86 @@ html, body {
   width: 100%;
 }
 
+.insights-bento-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 22px;
+  width: 100%;
+}
+
+.insights-bento-grid .bento-card {
+  background: linear-gradient(155deg, rgba(18, 9, 4, 0.56), rgba(10, 5, 2, 0.46));
+  border: 1px solid rgba(255, 200, 100, 0.24);
+  border-left: 1px solid rgba(255, 215, 140, 0.2);
+  border-right: 1px solid rgba(255, 175, 90, 0.16);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.55),
+    inset -10px -10px 20px rgba(255, 190, 90, 0.05),
+    inset 10px 10px 20px rgba(255, 120, 50, 0.06);
+}
+
+.insights-bento-grid .glass-shard-card:nth-child(even) {
+  background: linear-gradient(155deg, rgba(18, 9, 4, 0.56), rgba(10, 5, 2, 0.46));
+  border-right: 1px solid rgba(255, 175, 90, 0.16);
+  border-left: 1px solid rgba(255, 215, 140, 0.2);
+}
+
+.bento-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.bento-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 15% 20%, rgba(255, 204, 120, 0.08), transparent 35%);
+}
+
+.bento-card-title {
+  font-family: var(--font-serif);
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #ffe0b4;
+  letter-spacing: 0.02em;
+  margin-bottom: 10px;
+  text-shadow: 0 0 14px rgba(244, 164, 96, 0.42);
+}
+
+.bento-card-subtitle {
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  color: #ceb195;
+  line-height: 1.5;
+  margin-bottom: 28px;
+}
+
+.bento-card-title-small {
+  font-size: 1.26rem;
+}
+
+.bento-card-subtitle-small {
+  font-size: 0.82rem;
+  margin-bottom: 22px;
+}
+
+.bento-card-mood {
+  grid-column: span 7;
+}
+
+.bento-card-emotion {
+  grid-column: span 5;
+}
+
+.bento-card-radar {
+  grid-column: span 5;
+}
+
+.bento-card-heatmap {
+  grid-column: span 7;
+}
+
 .graphs-row-container {
   display: flex;
   gap: 32px;
@@ -2061,6 +2141,17 @@ html, body {
 }
 
 @media (max-width: 768px) {
+  .insights-bento-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bento-card-mood,
+  .bento-card-emotion,
+  .bento-card-radar,
+  .bento-card-heatmap {
+    grid-column: span 1;
+  }
+
   .graphs-row-container {
     flex-direction: column;
   }
