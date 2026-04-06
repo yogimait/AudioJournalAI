@@ -203,7 +203,7 @@ export async function initRunAnywhere(): Promise<void> {
 }
 
 /**
- * Initialize STT (Whisper Base only). Requires SDK to be ready.
+ * Initialize STT (Whisper Base int8). Requires SDK to be ready.
  */
 export async function initSTTModel(): Promise<void> {
   if (state.stt === "ready" || state.stt === "loading") return;
@@ -227,10 +227,10 @@ export async function initSTTModel(): Promise<void> {
     };
 
     const model = {
-      id: "whisper-tiny-encoder-decoder-txt",
-      encoder: "/models/whisper-tiny-encoder.onnx",
-      decoder: "/models/whisper-tiny-decoder.onnx",
-      tokens: "/models/whisper-tiny-tokens.txt",
+      id: "whisper-base-encoder-decoder-txt",
+      encoder: "/models/base.en-encoder.int8.onnx",
+      decoder: "/models/base.en-decoder.int8.onnx",
+      tokens: "/models/base.en-tokens.txt",
     };
 
     const [hasEncoder, hasDecoder, hasTokens] = await Promise.all([
@@ -303,9 +303,9 @@ export async function initVADModel(): Promise<void> {
     try {
       await VAD.loadModel({
         modelPath: "/models/silero_vad.onnx",
-        threshold: 0.62,
-        minSpeechDuration: 0.22,
-        minSilenceDuration: 0.35,
+        threshold: 0.5,
+        minSpeechDuration: 0.4,
+        minSilenceDuration: 0.6,
       });
     } catch (err) {
       throw new Error(`VAD.loadModel failed: ${getErrorMessage(err)}`);

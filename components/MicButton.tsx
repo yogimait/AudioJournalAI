@@ -14,7 +14,7 @@ import {
   isListeningActive,
   isListeningPaused,
 } from "@/lib/vad";
-import { analyzeText } from "@/lib/analysis";
+import { enqueueAnalysis, subscribeAnalysisQueue } from "@/lib/analysisQueue";
 import { deleteEntry, saveEntry, updateEntry, type JournalEntry } from "@/utils/storage";
 
 type RecordingState = "loadingModels" | "idle" | "listening" | "paused" | "processing";
@@ -34,12 +34,46 @@ export default function MicButton({ onNewEntry, onUpdateEntry, modelsReady }: Mi
   const isCreatingRef = useRef(false);
   const sessionIdRef = useRef(0);
   const isTogglingRef = useRef(false);
+  const latestQueuedTextByEntryRef = useRef(new Map<string, string>());
 
   useEffect(() => {
     if (modelsReady) {
       setState((prev) => (prev === "loadingModels" ? "idle" : prev));
     }
   }, [modelsReady]);
+
+  useEffect(() => {
+    return subscribeAnalysisQueue(
+      async ({ entryId, text, analysis }) => {
+        if (latestQueuedTextByEntryRef.current.get(entryId) !== text) {
+          return;
+        }
+
+        try {
+          const entry = await updateEntry(entryId, {
+            sentiment: analysis.sentiment,
+            sentimentScore: analysis.sentimentScore,
+            emotion: analysis.emotion,
+            emotionConfidence: analysis.emotionConfidence,
+            keywords: analysis.keywords,
+            topics: analysis.topics,
+          });
+
+          if (latestQueuedTextByEntryRef.current.get(entryId) !== text) {
+            return;
+          }
+
+          onUpdateEntry(entry);
+        } catch (err) {
+          console.error("[MicButton] async analysis update failed:", err);
+        }
+      },
+      (entryId, text, error) => {
+        // Keep transcript persistence unaffected even if NLP fails.
+        console.warn("[MicButton] async analysis failed:", { entryId, text, error });
+      }
+    );
+  }, [onUpdateEntry]);
 
   const handleStartStop = useCallback(async () => {
     if (state === "loadingModels" || state === "processing") return;
@@ -82,27 +116,19 @@ export default function MicButton({ onNewEntry, onUpdateEntry, modelsReady }: Mi
             accumulatedTextRef.current = nextText;
             setTranscribedText(nextText);
 
-            const analysis = await analyzeText(nextText);
-
-            // Session may have been stopped while analysis was running.
-            if (activeSessionId !== sessionIdRef.current) return;
-
             const targetEntryId = activeEntryIdRef.current;
 
             if (targetEntryId) {
               try {
                 const entry = await updateEntry(targetEntryId, {
                   text: nextText,
-                  sentiment: analysis.sentiment,
-                  sentimentScore: analysis.sentimentScore,
-                  emotion: analysis.emotion,
-                  emotionConfidence: analysis.emotionConfidence,
-                  keywords: analysis.keywords,
-                  topics: analysis.topics,
                 });
                 if (activeSessionId === sessionIdRef.current) {
                   onUpdateEntry(entry);
                 }
+
+                latestQueuedTextByEntryRef.current.set(targetEntryId, nextText);
+                enqueueAnalysis(targetEntryId, nextText);
               } catch (err) {
                 console.error("[MicButton] updateEntry failed:", err);
               }
@@ -113,12 +139,12 @@ export default function MicButton({ onNewEntry, onUpdateEntry, modelsReady }: Mi
                 const entry = await saveEntry({
                   text: nextText,
                   timestamp: Date.now(),
-                  sentiment: analysis.sentiment,
-                  sentimentScore: analysis.sentimentScore,
-                  emotion: analysis.emotion,
-                  emotionConfidence: analysis.emotionConfidence,
-                  keywords: analysis.keywords,
-                  topics: analysis.topics,
+                  sentiment: "neutral",
+                  sentimentScore: 0,
+                  emotion: "neutral",
+                  emotionConfidence: 0,
+                  keywords: [],
+                  topics: [],
                 });
                 if (activeSessionId !== sessionIdRef.current) {
                   // If the session ended before save resolved, remove stale record.
@@ -130,6 +156,9 @@ export default function MicButton({ onNewEntry, onUpdateEntry, modelsReady }: Mi
 
                 activeEntryIdRef.current = entry.id;
                 onNewEntry(entry);
+
+                latestQueuedTextByEntryRef.current.set(entry.id, nextText);
+                enqueueAnalysis(entry.id, nextText);
               } catch (err) {
                 console.error("[MicButton] saveEntry failed:", err);
               } finally {

@@ -750,7 +750,7 @@ html, body {
 }
 
 .journey-stop:hover,
-.journey-stop:focus-within {
+.journey-stop:focus-visible {
   z-index: 40;
 }
 
@@ -803,7 +803,7 @@ html, body {
 }
 
 .journey-stop:hover .journey-plant-glow,
-.journey-stop:focus-within .journey-plant-glow {
+.journey-stop:focus-visible .journey-plant-glow {
   opacity: 1;
 }
 
@@ -827,13 +827,13 @@ html, body {
 }
 
 .journey-stop:hover .journey-plant-blend,
-.journey-stop:focus-within .journey-plant-blend {
+.journey-stop:focus-visible .journey-plant-blend {
   transform: scale(1.04);
   filter: drop-shadow(0 0 22px rgba(255, 210, 120, 0.55));
 }
 
 .journey-stop:hover .journey-plant-img,
-.journey-stop:focus-within .journey-plant-img {
+.journey-stop:focus-visible .journey-plant-img {
   filter: contrast(1.08) brightness(1.12) drop-shadow(0 0 18px rgba(255, 200, 100, 0.45))
     drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
 }
@@ -899,7 +899,7 @@ html, body {
 }
 
 .journey-stop:hover .journey-tooltip,
-.journey-stop:focus-within .journey-tooltip {
+.journey-stop:focus-visible .journey-tooltip {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;

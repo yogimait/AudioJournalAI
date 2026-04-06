@@ -150,7 +150,13 @@ export default function JourneyPage({ entriesSorted }: JourneyPageProps) {
                         tabIndex={0}
                         role="button"
                         aria-label={label}
-                        onClick={() => setOpenEntryId(entry.id)}
+                        onClick={(e) => {
+                          setOpenEntryId(entry.id);
+                          // Avoid sticky visual focus after mouse/touch activation.
+                          if (e.detail > 0) {
+                            e.currentTarget.blur();
+                          }
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();

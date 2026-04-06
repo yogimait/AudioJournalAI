@@ -39,16 +39,28 @@ interface CrystalBarProps {
 }
 
 // Custom tooltip for the mood chart
-function MoodTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; payload: { emotion: string } }>; label?: string }) {
+function MoodTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{
+    value: number;
+    payload: { emotion: string; displayDate: string; displayTime: string };
+  }>;
+}) {
   if (active && payload && payload.length) {
+    const point = payload[0].payload;
     return (
       <div className="glass-shard-card tooltip-shard">
-        <p className="glass-shard-day" style={{ margin: '0 0 4px', fontSize: '12px' }}>{label}</p>
+        <p className="glass-shard-day" style={{ margin: '0 0 4px', fontSize: '12px' }}>
+          {point.displayDate} {point.displayTime}
+        </p>
         <p className="swirling-light-text" style={{ margin: '0 0 4px', fontWeight: 'bold' }}>
           Mood Score: <span style={{ color: '#ffd299' }}>{payload[0].value}%</span>
         </p>
         <p className="glass-shard-time" style={{ margin: 0, textTransform: 'capitalize' }}>
-          Primary feeling: {payload[0].payload.emotion}
+          Primary feeling: {point.emotion}
         </p>
       </div>
     );
@@ -156,9 +168,11 @@ export default function Graph({ entries }: GraphProps) {
                 horizontal={true}
               />
               <XAxis
-                dataKey="date"
+                dataKey="pointKey"
+                tickFormatter={(_value: string, index: number) => moodData[index]?.timelineLabel ?? ""}
                 tick={{ fontSize: 12, fill: "#c9b095", fontWeight: 500 }}
                 tickLine={false}
+                minTickGap={18}
                 tickMargin={16}
                 axisLine={{ stroke: "rgba(255, 200, 100, 0.2)", strokeWidth: 1 }}
               />

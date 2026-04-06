@@ -22,6 +22,33 @@ import { generateWeeklyInsight } from "@/utils/analytics";
 import { analyzeText, initNLPModels } from "@/lib/analysis";
 import { initRunAnywhere, initSTTModel, initVADModel, getRunAnywhereState } from "@/lib/runanywhere";
 
+const POSITIVE_TEXT_HINTS = ["happy", "joy", "great", "love", "excited", "grateful", "thankful", "calm", "relieved"];
+const NEGATIVE_TEXT_HINTS = ["sad", "angry", "anxious", "stressed", "stress", "fear", "afraid", "worried", "upset"];
+const POSITIVE_EMOTIONS = new Set(["joy", "gratitude", "calm"]);
+const NEGATIVE_EMOTIONS = new Set(["sadness", "stress", "anxiety", "anger", "fear"]);
+
+function hasAnyHint(text: string, terms: string[]): boolean {
+  const normalized = text.toLowerCase();
+  return terms.some((term) => normalized.includes(term));
+}
+
+function needsAnalysisRefresh(entry: JournalEntry): boolean {
+  if (!entry.text.trim()) return false;
+
+  const hasPositiveHint = hasAnyHint(entry.text, POSITIVE_TEXT_HINTS);
+  const hasNegativeHint = hasAnyHint(entry.text, NEGATIVE_TEXT_HINTS);
+
+  if (hasPositiveHint && NEGATIVE_EMOTIONS.has(entry.emotion)) {
+    return true;
+  }
+
+  if (hasNegativeHint && POSITIVE_EMOTIONS.has(entry.emotion)) {
+    return true;
+  }
+
+  return entry.emotionConfidence < 0.25;
+}
+
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === "string") return err;
@@ -48,6 +75,7 @@ export default function Home() {
   const [initError, setInitError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isLoadingEntries, setIsLoadingEntries] = useState(true);
+  const refreshedEntryIdsRef = useRef(new Set<string>());
   const navigateRef = useRef<ScrollToPageFn>(() => {});
   const scrollToPage = useCallback((index: number) => {
     navigateRef.current(index);
@@ -142,6 +170,50 @@ export default function Home() {
     setEntries((prev) => prev.map((entry) => (entry.id === updated.id ? updated : entry)));
     return updated;
   }, []);
+
+  // Refresh obviously stale legacy analyses in the background.
+  useEffect(() => {
+    if (!modelsReady || entries.length === 0) return;
+
+    let cancelled = false;
+
+    const refreshStaleAnalyses = async () => {
+      const candidates = entries
+        .filter((entry) => !refreshedEntryIdsRef.current.has(entry.id))
+        .filter(needsAnalysisRefresh)
+        .slice(0, 5);
+
+      for (const entry of candidates) {
+        if (cancelled) return;
+        refreshedEntryIdsRef.current.add(entry.id);
+
+        try {
+          const analysis = await analyzeText(entry.text);
+          if (cancelled) return;
+
+          const updated = await updateEntry(entry.id, {
+            sentiment: analysis.sentiment,
+            sentimentScore: analysis.sentimentScore,
+            emotion: analysis.emotion,
+            emotionConfidence: analysis.emotionConfidence,
+            keywords: analysis.keywords,
+            topics: analysis.topics,
+          });
+
+          if (cancelled) return;
+          setEntries((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+        } catch (err) {
+          console.warn("[NLP] Failed to refresh stale analysis for entry", entry.id, err);
+        }
+      }
+    };
+
+    void refreshStaleAnalyses();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [entries, modelsReady]);
 
   const entriesSorted = useMemo(
     () => [...entries].sort((a, b) => b.timestamp - a.timestamp),

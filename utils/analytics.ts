@@ -170,20 +170,62 @@ function generateInsightText(
  * Get mood data formatted for Recharts visualization.
  */
 export function getMoodChartData(entries: JournalEntry[]): {
-  date: string;
+  pointKey: string;
+  timelineLabel: string;
+  displayDate: string;
+  displayTime: string;
   mood: number;
   emotion: string;
 }[] {
+  const emotionMoodFallback: Partial<Record<Emotion, number>> = {
+    joy: 0.65,
+    gratitude: 0.55,
+    calm: 0.35,
+    surprise: 0.15,
+    neutral: 0,
+    stress: -0.45,
+    anxiety: -0.55,
+    sadness: -0.7,
+    anger: -0.65,
+    fear: -0.7,
+  };
+
+  const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
   return [...entries]
     .sort((a, b) => a.timestamp - b.timestamp)
-    .map((entry) => ({
-      date: new Date(entry.timestamp).toLocaleDateString("en-US", {
+    .map((entry, index) => {
+      const timestamp = new Date(entry.timestamp);
+      const displayDate = timestamp.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
-      }),
-      mood: Math.round((entry.sentimentScore + 1) * 50), // Normalize to 0-100
-      emotion: entry.emotion,
-    }));
+      });
+      const displayTime = timestamp.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      let score = Number.isFinite(entry.sentimentScore) ? entry.sentimentScore : 0;
+      if (Math.abs(score) < 0.08 && entry.emotion !== "neutral") {
+        const emotionFallback = emotionMoodFallback[entry.emotion] ?? 0;
+        const confidence = Number.isFinite(entry.emotionConfidence)
+          ? clamp(entry.emotionConfidence, 0, 1)
+          : 0.5;
+        const blend = 0.35 + confidence * 0.45;
+        score = score * (1 - blend) + emotionFallback * blend;
+      }
+
+      score = clamp(score, -1, 1);
+
+      return {
+        pointKey: `${entry.timestamp}-${index}`,
+        timelineLabel: displayTime,
+        displayDate,
+        displayTime,
+        mood: Math.round((score + 1) * 50),
+        emotion: entry.emotion,
+      };
+    });
 }
 
 /**
