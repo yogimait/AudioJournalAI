@@ -64,5 +64,5 @@ sherpa-onnx-whisper-base.en
 
 docs/
 
-/public/models
-/public/treeimages
+public/models
+public/treeimages
