@@ -3,7 +3,7 @@
 /**
  * BookLayout — horizontal page navigation like a leather-bound journal.
  * CSS scroll-snap for smooth page transitions.
- * Pages: Cover → Record → Entries → Graphs/Insights
+ * Pages: Cover → Record → Entries → Insights → Journey → About
  */
 
 import { useRef, useState, useCallback, useEffect, type ReactNode } from "react";
@@ -18,9 +18,11 @@ export interface BookPage {
   wide?: boolean;
 }
 
+export type ScrollToPageFn = (index: number) => void;
+
 interface BookLayoutProps {
   readonly pages: BookPage[];
-  readonly onNavigateRef?: (fn: (index: number) => void) => void;
+  readonly onNavigateRef?: (fn: ScrollToPageFn) => void;
 }
 
 export default function BookLayout({ pages, onNavigateRef }: BookLayoutProps) {
@@ -132,11 +134,7 @@ export default function BookLayout({ pages, onNavigateRef }: BookLayoutProps) {
 
   return (
     <div className="app-wrapper">
-      <Navbar
-        pages={pages}
-        currentPage={currentPage}
-        onNavigate={scrollToPage}
-      />
+      <Navbar pages={pages} currentPage={currentPage} onNavigate={scrollToPage} />
 
       {/* Scroll container with pages */}
       <div

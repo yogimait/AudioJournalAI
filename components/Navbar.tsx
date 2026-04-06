@@ -5,8 +5,6 @@
  * Displays logo, page links, and quick-action mic icon.
  */
 
-import type { ReactNode } from "react";
-
 export interface NavPage {
   id: string;
   label: string;
@@ -16,10 +14,9 @@ interface NavbarProps {
   readonly pages: NavPage[];
   readonly currentPage: number;
   readonly onNavigate: (index: number) => void;
-  readonly extraLinks?: ReactNode;
 }
 
-export default function Navbar({ pages, currentPage, onNavigate, extraLinks }: NavbarProps) {
+export default function Navbar({ pages, currentPage, onNavigate }: NavbarProps) {
   return (
     <nav className="top-nav" aria-label="Main navigation">
       <div className="nav-logo">
@@ -39,7 +36,6 @@ export default function Navbar({ pages, currentPage, onNavigate, extraLinks }: N
             {page.label}
           </button>
         ))}
-        {extraLinks}
       </div>
       <div className="nav-actions">
         <svg className="nav-mic-icon" viewBox="0 0 24 24" fill="currentColor" onClick={() => onNavigate(1)}>

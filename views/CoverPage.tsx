@@ -9,11 +9,13 @@ import type { JournalEntry } from "@/utils/storage";
 
 /**
  * Deterministic pseudo-random height based on index.
- * Produces consistent values on server and client, avoiding hydration mismatch.
+ * Values are rounded for inline styles so SSR and the browser serialize identical strings
+ * (avoids hydration mismatch from float precision differences).
  */
-function seededHeight(index: number, offset: number = 0): number {
+function seededHeightPx(index: number, offset: number = 0): string {
   const x = Math.sin((index + offset) * 9.1 + 7.3) * 10000;
-  return (x - Math.floor(x)) * 12 + 4;
+  const h = (x - Math.floor(x)) * 12 + 4;
+  return `${h.toFixed(2)}px`;
 }
 
 interface CoverPageProps {
@@ -52,7 +54,11 @@ export default function CoverPage({ entriesSorted, onStartRecording, onViewInsig
       <div className="cover-interactive">
          <div className="cover-waveform-glow">
           {[...Array(12)].map((_, i) => (
-            <div key={`L-${i}`} className="glowing-wave-bar" style={{ animationDelay: `${i * 0.1}s`, height: `${seededHeight(i)}px` }} />
+            <div
+              key={`L-${i}`}
+              className="glowing-wave-bar"
+              style={{ animationDelay: `${(i * 0.1).toFixed(1)}s`, height: seededHeightPx(i) }}
+            />
           ))}
         </div>
         
@@ -65,7 +71,11 @@ export default function CoverPage({ entriesSorted, onStartRecording, onViewInsig
 
         <div className="cover-waveform-glow">
           {[...Array(12)].map((_, i) => (
-            <div key={`R-${i}`} className="glowing-wave-bar" style={{ animationDelay: `${(11 - i) * 0.1}s`, height: `${seededHeight(i, 12)}px` }} />
+            <div
+              key={`R-${i}`}
+              className="glowing-wave-bar"
+              style={{ animationDelay: `${((11 - i) * 0.1).toFixed(1)}s`, height: seededHeightPx(i, 12) }}
+            />
           ))}
         </div>
       </div>
