@@ -272,6 +272,31 @@ html, body {
   display: none;
 }
 
+/* Journey: allow vertical page scroll with a visible track (other pages keep hidden scrollbars). */
+.book-page:has(.journey-page-root) {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(200, 150, 90, 0.55) rgba(24, 14, 8, 0.45);
+  -ms-overflow-style: auto;
+}
+
+.book-page:has(.journey-page-root)::-webkit-scrollbar {
+  display: block;
+  width: 10px;
+}
+
+.book-page:has(.journey-page-root)::-webkit-scrollbar-track {
+  background: rgba(24, 14, 8, 0.4);
+  border-radius: 8px;
+  margin: 4px 0;
+}
+
+.book-page:has(.journey-page-root)::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(210, 160, 100, 0.65), rgba(160, 110, 60, 0.55));
+  border-radius: 8px;
+  border: 2px solid rgba(24, 14, 8, 0.35);
+}
+
 .book-page-inner {
   width: 100%;
   max-width: 740px;
@@ -648,6 +673,331 @@ html, body {
   border-color: rgba(200, 140, 70, 0.5);
   color: #fff;
   transform: translateY(-2px);
+}
+
+/* --- Journey: trees on glass board below header (no inner card) --- */
+.journey-strip {
+  width: 100%;
+  padding: 12px 0 8px;
+  margin: 0;
+  position: relative;
+  overflow: visible;
+}
+
+.journey-empty {
+  text-align: center;
+  color: rgba(201, 176, 149, 0.9);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  padding: 56px 16px 72px;
+  margin: 0;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+}
+
+.journey-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.journey-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.journey-rail {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  min-height: min(520px, 52vh);
+  padding:
+    clamp(28px, 4vmin, 56px)
+    8px
+    clamp(56px, 9vh, 88px);
+}
+
+.journey-stops-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 0;
+  width: 100%;
+  padding: 0 4%;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.journey-stops-row--single {
+  justify-content: center;
+}
+
+.journey-stop {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 220px;
+  display: flex;
+  justify-content: center;
+  outline: none;
+  cursor: pointer;
+  position: relative;
+}
+
+.journey-stop:hover,
+.journey-stop:focus-within {
+  z-index: 40;
+}
+
+.journey-stop-stack {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(200px, 30vw);
+  min-width: 120px;
+}
+
+.journey-word-pill {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #3d2918;
+  background: linear-gradient(180deg, #f0dcc0 0%, #d4b896 100%);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(80, 50, 30, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  margin-bottom: 3px;
+  z-index: 2;
+}
+
+.journey-plant-shell {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  /* No fixed min-height: short trees (e.g. morning calm) sit tight under the word pill instead of floating with a gap. */
+  min-height: 0;
+  width: 100%;
+}
+
+.journey-plant-glow {
+  position: absolute;
+  width: 160%;
+  height: 160%;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse at center, rgba(230, 190, 90, 0.5) 0%, rgba(180, 120, 40, 0.15) 45%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.journey-stop:hover .journey-plant-glow,
+.journey-stop:focus-within .journey-plant-glow {
+  opacity: 1;
+}
+
+.journey-plant-blend {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  transition: filter 0.35s ease, transform 0.35s ease;
+}
+
+/* Multiply knocks out light/white PNG backgrounds so nebula shows through */
+.journey-plant-img {
+  position: relative;
+  object-fit: contain;
+  object-position: bottom center;
+  mix-blend-mode: multiply;
+  filter: contrast(1.08) brightness(1.08) drop-shadow(0 3px 8px rgba(0, 0, 0, 0.35));
+  transition: filter 0.35s ease;
+}
+
+.journey-stop:hover .journey-plant-blend,
+.journey-stop:focus-within .journey-plant-blend {
+  transform: scale(1.04);
+  filter: drop-shadow(0 0 22px rgba(255, 210, 120, 0.55));
+}
+
+.journey-stop:hover .journey-plant-img,
+.journey-stop:focus-within .journey-plant-img {
+  filter: contrast(1.08) brightness(1.12) drop-shadow(0 0 18px rgba(255, 200, 100, 0.45))
+    drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
+}
+
+.journey-parchment {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: rgba(230, 210, 180, 0.88);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
+  background: none;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
+
+.journey-parchment-time {
+  font-weight: 400;
+  font-size: 0.64rem;
+  letter-spacing: 0.06em;
+  color: rgba(200, 180, 155, 0.75);
+  opacity: 1;
+}
+
+/* Headline-only pop-out; page scrolls if the card extends past the rail. */
+.journey-tooltip {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  bottom: auto;
+  transform: translateX(-50%) translateY(0);
+  width: max-content;
+  max-width: min(280px, 85vw);
+  padding: 10px 14px;
+  background: #f4ead8;
+  border: 1px solid rgba(90, 60, 40, 0.22);
+  border-radius: 10px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.38);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.28s ease, visibility 0.28s ease, transform 0.28s ease;
+  z-index: 50;
+  text-align: center;
+}
+
+.journey-tooltip::after {
+  content: "";
+  position: absolute;
+  top: -9px;
+  bottom: auto;
+  left: 50%;
+  margin-left: -9px;
+  border: 9px solid transparent;
+  border-bottom-color: #f4ead8;
+  filter: drop-shadow(0 -1px 1px rgba(0, 0, 0, 0.06));
+}
+
+.journey-stop:hover .journey-tooltip,
+.journey-stop:focus-within .journey-tooltip {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(4px);
+}
+
+.journey-tooltip-headline {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2a1a12;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.journey-entry-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 120;
+  max-width: calc(100vw - 28px);
+  width: min(480px, 100%);
+  max-height: min(90vh, 720px);
+  padding: 0;
+  border: none;
+  background: transparent;
+  overflow: visible;
+  margin: 0;
+}
+
+.journey-entry-dialog::backdrop {
+  background: rgba(8, 4, 2, 0.78);
+  backdrop-filter: blur(6px);
+}
+
+.journey-entry-dialog-panel {
+  background: linear-gradient(165deg, #f8f0e4 0%, #ebe0d0 100%);
+  border: 1px solid rgba(70, 45, 28, 0.28);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  max-height: min(78vh, 640px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.journey-entry-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 10px 18px;
+  border-bottom: 1px solid rgba(60, 40, 25, 0.12);
+  flex-shrink: 0;
+}
+
+.journey-entry-dialog-title {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #5c4330;
+  line-height: 1.4;
+}
+
+.journey-entry-dialog-close {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  margin: -6px -4px 0 0;
+  border: none;
+  border-radius: 10px;
+  background: rgba(60, 40, 25, 0.08);
+  color: #3d2918;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.journey-entry-dialog-close:hover {
+  background: rgba(120, 80, 50, 0.18);
+  color: #1a1008;
+}
+
+.journey-entry-dialog-body {
+  margin: 0;
+  padding: 14px 18px 20px;
+  overflow-y: auto;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  line-height: 1.65;
+  color: #2a1a12;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* --- Constellation Accents & Icons --- */
@@ -1503,6 +1853,20 @@ html, body {
   justify-content: flex-start;
   background: transparent;
   padding: 120px 48px 120px;
+}
+
+.book-nebula-inner:has(.journey-page-root) {
+  padding-top: 100px;
+  padding-bottom: 72px;
+}
+
+.page-insights-nebula.journey-page-root {
+  padding-bottom: 16px;
+}
+
+.journey-page-root .glass-board-nebula {
+  padding-bottom: 20px;
+  gap: 16px;
 }
 
 .page-record-nebula {
