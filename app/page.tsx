@@ -10,11 +10,12 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import BookLayout from "@/components/BookLayout";
+import BookLayout, { type ScrollToPageFn } from "@/components/BookLayout";
 import CoverPage from "@/views/CoverPage";
 import RecordPage from "@/views/RecordPage";
 import EntriesPage from "@/views/EntriesPage";
 import InsightsPage from "@/views/InsightsPage";
+import JourneyPage from "@/views/JourneyPage";
 import AboutPage from "@/views/AboutPage";
 import { getAllEntries, deleteEntry, type JournalEntry } from "@/utils/storage";
 import { generateWeeklyInsight } from "@/utils/analytics";
@@ -38,14 +39,19 @@ function getErrorMessage(err: unknown): string {
   return String(err);
 }
 
+/** Index of the Insights page in `pages` — must match array order below. */
+const INSIGHTS_PAGE_INDEX = 3;
+
 export default function Home() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [modelsReady, setModelsReady] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isLoadingEntries, setIsLoadingEntries] = useState(true);
-  const navigateRef = useRef<(index: number) => void>(() => {});
-  const scrollToPage = useCallback((index: number) => navigateRef.current(index), []);
+  const navigateRef = useRef<ScrollToPageFn>(() => {});
+  const scrollToPage = useCallback((index: number) => {
+    navigateRef.current(index);
+  }, []);
 
   // Load persisted entries on mount
   useEffect(() => {
@@ -127,7 +133,7 @@ export default function Home() {
         <CoverPage
           entriesSorted={entriesSorted}
           onStartRecording={() => scrollToPage(1)}
-          onViewInsights={() => scrollToPage(3)}
+          onViewInsights={() => scrollToPage(INSIGHTS_PAGE_INDEX)}
         />
       ),
     },
@@ -172,6 +178,13 @@ export default function Home() {
       ),
     },
     {
+      id: "journey",
+      label: "Journey",
+      wide: true,
+      nebulaPage: true,
+      content: <JourneyPage entriesSorted={entriesSorted} />,
+    },
+    {
       id: "about",
       label: "About Us",
       nebulaPage: true,
@@ -179,5 +192,12 @@ export default function Home() {
     },
   ];
 
-  return <BookLayout pages={pages} onNavigateRef={(fn) => { navigateRef.current = fn; }} />;
+  return (
+    <BookLayout
+      pages={pages}
+      onNavigateRef={(fn) => {
+        navigateRef.current = fn;
+      }}
+    />
+  );
 }
