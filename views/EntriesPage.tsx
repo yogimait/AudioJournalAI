@@ -12,9 +12,16 @@ interface EntriesPageProps {
   readonly entriesSorted: JournalEntry[];
   readonly isLoadingEntries: boolean;
   readonly onDeleteEntry: (id: string) => void;
+  readonly onEditEntry: (id: string, text: string) => Promise<JournalEntry>;
 }
 
-export default function EntriesPage({ entries, entriesSorted, isLoadingEntries, onDeleteEntry }: EntriesPageProps) {
+export default function EntriesPage({
+  entries,
+  entriesSorted,
+  isLoadingEntries,
+  onDeleteEntry,
+  onEditEntry,
+}: EntriesPageProps) {
   return (
     <div className="page-entries-nebula">
       <div className="glass-board-nebula">
@@ -44,6 +51,7 @@ export default function EntriesPage({ entries, entriesSorted, isLoadingEntries, 
               key={entry.id}
               entry={entry}
               onDelete={onDeleteEntry}
+              onEdit={onEditEntry}
             />
           ))}
         </div>

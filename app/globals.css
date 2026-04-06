@@ -1942,11 +1942,47 @@ html, body {
   transition: all 0.3s ease;
 }
 
+.fractal-delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .fractal-delete-btn:hover {
   color: #ff9000;
   border-color: rgba(255, 144, 0, 0.5);
   box-shadow: 0 0 12px rgba(255, 144, 0, 0.3);
   transform: rotate(90deg);
+}
+
+.fractal-action-btn {
+  height: 32px;
+  min-width: 64px;
+  padding: 0 12px;
+  color: #d7c4af;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28);
+  font-family: var(--font-serif);
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.fractal-action-btn:hover {
+  border-color: rgba(255, 200, 100, 0.45);
+  color: #ffe3b7;
+  box-shadow: 0 0 10px rgba(255, 185, 92, 0.25);
+}
+
+.fractal-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.fractal-action-btn-save {
+  border-color: rgba(100, 200, 255, 0.35);
+  color: #ccecff;
 }
 
 .swirling-light-text-container {
@@ -1964,6 +2000,33 @@ html, body {
   line-height: 1.7;
   font-style: italic;
   text-shadow: 0 0 8px rgba(209, 191, 174, 0.3);
+}
+
+.journal-edit-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  color: #e7d4be;
+  font-family: var(--font-serif);
+  font-size: 1.02rem;
+  line-height: 1.7;
+  padding: 14px;
+  resize: vertical;
+  min-height: 120px;
+}
+
+.journal-edit-input:focus {
+  outline: none;
+  border-color: rgba(255, 190, 95, 0.5);
+  box-shadow: 0 0 0 2px rgba(255, 180, 76, 0.2);
+}
+
+.journal-edit-error {
+  margin: -12px 0 16px;
+  color: #ffb7a1;
+  font-family: var(--font-serif);
+  font-size: 0.84rem;
 }
 
 .crystallized-tags {

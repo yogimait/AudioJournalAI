@@ -303,9 +303,9 @@ export async function initVADModel(): Promise<void> {
     try {
       await VAD.loadModel({
         modelPath: "/models/silero_vad.onnx",
-        threshold: 0.8,
-        minSpeechDuration: 0.5,
-        minSilenceDuration: 0.8,
+        threshold: 0.62,
+        minSpeechDuration: 0.22,
+        minSilenceDuration: 0.35,
       });
     } catch (err) {
       throw new Error(`VAD.loadModel failed: ${getErrorMessage(err)}`);

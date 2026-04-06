@@ -16,9 +16,9 @@ import RecordPage from "@/views/RecordPage";
 import EntriesPage from "@/views/EntriesPage";
 import InsightsPage from "@/views/InsightsPage";
 import AboutPage from "@/views/AboutPage";
-import { getAllEntries, deleteEntry, type JournalEntry } from "@/utils/storage";
+import { getAllEntries, deleteEntry, updateEntry, type JournalEntry } from "@/utils/storage";
 import { generateWeeklyInsight } from "@/utils/analytics";
-import { initNLPModels } from "@/lib/analysis";
+import { analyzeText, initNLPModels } from "@/lib/analysis";
 import { initRunAnywhere, initSTTModel, initVADModel, getRunAnywhereState } from "@/lib/runanywhere";
 
 function getErrorMessage(err: unknown): string {
@@ -98,7 +98,13 @@ export default function Home() {
   }, []);
 
   const handleNewEntry = useCallback((entry: JournalEntry) => {
-    setEntries((prev) => [entry, ...prev]);
+    setEntries((prev) => {
+      const existingIndex = prev.findIndex((current) => current.id === entry.id);
+      if (existingIndex >= 0) {
+        return prev.map((current) => (current.id === entry.id ? entry : current));
+      }
+      return [entry, ...prev];
+    });
   }, []);
 
   const handleUpdateEntry = useCallback((updated: JournalEntry) => {
@@ -108,6 +114,27 @@ export default function Home() {
   const handleDeleteEntry = useCallback(async (id: string) => {
     await deleteEntry(id);
     setEntries((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
+  const handleEditEntry = useCallback(async (id: string, text: string) => {
+    const normalizedText = text.replace(/\s+/g, " ").trim();
+    if (!normalizedText) {
+      throw new Error("Entry text cannot be empty");
+    }
+
+    const analysis = await analyzeText(normalizedText);
+    const updated = await updateEntry(id, {
+      text: normalizedText,
+      sentiment: analysis.sentiment,
+      sentimentScore: analysis.sentimentScore,
+      emotion: analysis.emotion,
+      emotionConfidence: analysis.emotionConfidence,
+      keywords: analysis.keywords,
+      topics: analysis.topics,
+    });
+
+    setEntries((prev) => prev.map((entry) => (entry.id === updated.id ? updated : entry)));
+    return updated;
   }, []);
 
   const entriesSorted = useMemo(
@@ -156,6 +183,7 @@ export default function Home() {
           entriesSorted={entriesSorted}
           isLoadingEntries={isLoadingEntries}
           onDeleteEntry={handleDeleteEntry}
+          onEditEntry={handleEditEntry}
         />
       ),
     },

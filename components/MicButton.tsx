@@ -5,7 +5,7 @@
  * States: loadingModels → idle → listening → processing
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   startListening,
   stopListening,
@@ -15,7 +15,7 @@ import {
   isListeningPaused,
 } from "@/lib/vad";
 import { analyzeText } from "@/lib/analysis";
-import { saveEntry, updateEntry, type JournalEntry } from "@/utils/storage";
+import { deleteEntry, saveEntry, updateEntry, type JournalEntry } from "@/utils/storage";
 
 type RecordingState = "loadingModels" | "idle" | "listening" | "paused" | "processing";
 
@@ -33,27 +33,33 @@ export default function MicButton({ onNewEntry, onUpdateEntry, modelsReady }: Mi
   const accumulatedTextRef = useRef<string>("");
   const isCreatingRef = useRef(false);
   const sessionIdRef = useRef(0);
+  const isTogglingRef = useRef(false);
 
-  if (modelsReady && state === "loadingModels") {
-    setState("idle");
-  }
+  useEffect(() => {
+    if (modelsReady) {
+      setState((prev) => (prev === "loadingModels" ? "idle" : prev));
+    }
+  }, [modelsReady]);
 
   const handleStartStop = useCallback(async () => {
     if (state === "loadingModels" || state === "processing") return;
+    if (isTogglingRef.current) return;
 
-    if (isListeningActive()) {
-      setState("processing");
-      await stopListening();
-      sessionIdRef.current += 1;
-      activeEntryIdRef.current = null;
-      accumulatedTextRef.current = "";
-      isCreatingRef.current = false;
-      setTranscribedText("");
-      setState("idle");
-      return;
-    }
+    isTogglingRef.current = true;
 
     try {
+      if (isListeningActive()) {
+        setState("processing");
+        await stopListening();
+        sessionIdRef.current += 1;
+        activeEntryIdRef.current = null;
+        accumulatedTextRef.current = "";
+        isCreatingRef.current = false;
+        setTranscribedText("");
+        setState("idle");
+        return;
+      }
+
       sessionIdRef.current += 1;
       const activeSessionId = sessionIdRef.current;
       activeEntryIdRef.current = null;
@@ -62,64 +68,76 @@ export default function MicButton({ onNewEntry, onUpdateEntry, modelsReady }: Mi
       
       await startListening({
         onTranscription: async (text: string) => {
-          if (activeSessionId !== sessionIdRef.current) return;
-
-          const normalizedText = text.replace(/\s+/g, " ").trim();
-
-          // Ignore very short transcribed noises like "[music]" or "[blank]"
-          if (normalizedText.length < 3 || normalizedText.startsWith("[")) return;
-
-          accumulatedTextRef.current += (accumulatedTextRef.current ? " " : "") + normalizedText;
-          setTranscribedText(accumulatedTextRef.current);
-
-          let analysis;
           try {
-            analysis = await analyzeText(accumulatedTextRef.current);
-          } catch (err) {
-            console.error("[MicButton] analyzeText failed:", err);
-            return;
-          }
-          
-          if (activeEntryIdRef.current) {
-            try {
-              const entry = await updateEntry(activeEntryIdRef.current, {
-                text: accumulatedTextRef.current,
-                sentiment: analysis.sentiment,
-                sentimentScore: analysis.sentimentScore,
-                emotion: analysis.emotion,
-                emotionConfidence: analysis.emotionConfidence,
-                keywords: analysis.keywords,
-                topics: analysis.topics,
-              });
-              if (activeSessionId === sessionIdRef.current) {
-                onUpdateEntry(entry);
+            if (activeSessionId !== sessionIdRef.current) return;
+
+            const normalizedText = text.replace(/\s+/g, " ").trim();
+
+            // Ignore very short transcribed noises like "[music]" or "[blank]"
+            if (normalizedText.length < 3 || normalizedText.startsWith("[")) return;
+
+            const nextText = `${accumulatedTextRef.current ? `${accumulatedTextRef.current} ` : ""}${normalizedText}`.trim();
+            if (!nextText) return;
+
+            accumulatedTextRef.current = nextText;
+            setTranscribedText(nextText);
+
+            const analysis = await analyzeText(nextText);
+
+            // Session may have been stopped while analysis was running.
+            if (activeSessionId !== sessionIdRef.current) return;
+
+            const targetEntryId = activeEntryIdRef.current;
+
+            if (targetEntryId) {
+              try {
+                const entry = await updateEntry(targetEntryId, {
+                  text: nextText,
+                  sentiment: analysis.sentiment,
+                  sentimentScore: analysis.sentimentScore,
+                  emotion: analysis.emotion,
+                  emotionConfidence: analysis.emotionConfidence,
+                  keywords: analysis.keywords,
+                  topics: analysis.topics,
+                });
+                if (activeSessionId === sessionIdRef.current) {
+                  onUpdateEntry(entry);
+                }
+              } catch (err) {
+                console.error("[MicButton] updateEntry failed:", err);
               }
-            } catch (err) {
-              console.error("[MicButton] updateEntry failed:", err);
-            }
-          } else {
-            if (isCreatingRef.current) return;
-            isCreatingRef.current = true;
-            try {
-              const entry = await saveEntry({
-                text: accumulatedTextRef.current,
-                timestamp: Date.now(),
-                sentiment: analysis.sentiment,
-                sentimentScore: analysis.sentimentScore,
-                emotion: analysis.emotion,
-                emotionConfidence: analysis.emotionConfidence,
-                keywords: analysis.keywords,
-                topics: analysis.topics,
-              });
-              if (activeSessionId === sessionIdRef.current) {
+            } else {
+              if (isCreatingRef.current) return;
+              isCreatingRef.current = true;
+              try {
+                const entry = await saveEntry({
+                  text: nextText,
+                  timestamp: Date.now(),
+                  sentiment: analysis.sentiment,
+                  sentimentScore: analysis.sentimentScore,
+                  emotion: analysis.emotion,
+                  emotionConfidence: analysis.emotionConfidence,
+                  keywords: analysis.keywords,
+                  topics: analysis.topics,
+                });
+                if (activeSessionId !== sessionIdRef.current) {
+                  // If the session ended before save resolved, remove stale record.
+                  await deleteEntry(entry.id).catch((cleanupErr) => {
+                    console.warn("[MicButton] cleanup stale entry failed:", cleanupErr);
+                  });
+                  return;
+                }
+
                 activeEntryIdRef.current = entry.id;
                 onNewEntry(entry);
+              } catch (err) {
+                console.error("[MicButton] saveEntry failed:", err);
+              } finally {
+                isCreatingRef.current = false;
               }
-            } catch (err) {
-              console.error("[MicButton] saveEntry failed:", err);
-            } finally {
-              isCreatingRef.current = false;
             }
+          } catch (err) {
+            console.error("[MicButton] transcription pipeline failed:", err);
           }
         },
         onStateChange: (vadState) => {
@@ -139,6 +157,8 @@ export default function MicButton({ onNewEntry, onUpdateEntry, modelsReady }: Mi
     } catch (err) {
       console.error("Failed to start recording:", err);
       setState("idle");
+    } finally {
+      isTogglingRef.current = false;
     }
   }, [state, onNewEntry, onUpdateEntry]);
 

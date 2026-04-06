@@ -19,6 +19,89 @@ let onTranscription: OnTranscriptionCallback | null = null;
 let onStateChange: OnStateChangeCallback | null = null;
 let isActive = false;
 let isPaused = false;
+let isStarting = false;
+let isFlushing = false;
+let flushRequested = false;
+let bufferedSampleCount = 0;
+
+const TARGET_SAMPLE_RATE = 16000;
+const LIVE_CHUNK_SECONDS = 3.2;
+const MIN_TRANSCRIBE_SECONDS = 0.2;
+
+const LIVE_CHUNK_SAMPLES = Math.floor(TARGET_SAMPLE_RATE * LIVE_CHUNK_SECONDS);
+const MIN_TRANSCRIBE_SAMPLES = Math.floor(TARGET_SAMPLE_RATE * MIN_TRANSCRIBE_SECONDS);
+
+function resetBufferedAudio(): void {
+  audioBuffer = [];
+  bufferedSampleCount = 0;
+}
+
+function pushBufferedAudio(samples: Float32Array): void {
+  audioBuffer.push(samples);
+  bufferedSampleCount += samples.length;
+}
+
+function drainBufferedAudio(minSamples: number): Float32Array | null {
+  if (bufferedSampleCount < minSamples || audioBuffer.length === 0) {
+    return null;
+  }
+
+  const combined = new Float32Array(bufferedSampleCount);
+  let offset = 0;
+  for (const chunk of audioBuffer) {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  resetBufferedAudio();
+  return combined;
+}
+
+function resampleTo16k(samples: Float32Array, sourceSampleRate: number): Float32Array {
+  if (!Number.isFinite(sourceSampleRate) || sourceSampleRate <= 0 || sourceSampleRate === TARGET_SAMPLE_RATE) {
+    return samples;
+  }
+
+  const ratio = TARGET_SAMPLE_RATE / sourceSampleRate;
+  const outputLength = Math.max(1, Math.round(samples.length * ratio));
+  const resampled = new Float32Array(outputLength);
+
+  for (let i = 0; i < outputLength; i += 1) {
+    const sourceIndex = i / ratio;
+    const lower = Math.floor(sourceIndex);
+    const upper = Math.min(lower + 1, samples.length - 1);
+    const weight = sourceIndex - lower;
+    resampled[i] = samples[lower] * (1 - weight) + samples[upper] * weight;
+  }
+
+  return resampled;
+}
+
+async function flushBufferedTranscription(minSamples: number): Promise<void> {
+  if (isFlushing) {
+    flushRequested = true;
+    return;
+  }
+
+  const combined = drainBufferedAudio(minSamples);
+  if (!combined) return;
+
+  isFlushing = true;
+  try {
+    const text = await transcribe(combined);
+    if (text) {
+      onTranscription?.(text);
+    }
+  } catch (err) {
+    console.error("[VAD] Buffered transcription failed:", err);
+  } finally {
+    isFlushing = false;
+    if (flushRequested) {
+      flushRequested = false;
+      void flushBufferedTranscription(minSamples);
+    }
+  }
+}
 
 /**
  * Start the VAD→STT pipeline.
@@ -30,7 +113,13 @@ export async function startListening(
     onStateChange?: OnStateChangeCallback;
   }
 ): Promise<void> {
-  if (isActive) return;
+  if (isActive || isStarting) return;
+
+  isStarting = true;
+  isPaused = false;
+  flushRequested = false;
+  isFlushing = false;
+  resetBufferedAudio();
 
   onTranscription = callbacks.onTranscription;
   onStateChange = callbacks.onStateChange || null;
@@ -44,36 +133,26 @@ export async function startListening(
 
     VAD.onSpeechActivity(async (activity) => {
       if (activity === SpeechActivity.Started) {
-        audioBuffer = [];
+        resetBufferedAudio();
         onStateChange?.("listening");
       }
 
       if (activity === SpeechActivity.Ended) {
         onStateChange?.("processing");
 
-        // Flush buffered audio to STT
+        // Prefer buffered audio; it tends to preserve speech boundaries better.
+        await flushBufferedTranscription(MIN_TRANSCRIBE_SAMPLES);
+
+        // Fallback to segment from VAD in case buffer was too small.
         const segment = VAD.popSpeechSegment();
-        if (segment && segment.samples && segment.samples.length > 0) {
+        if (segment && segment.samples && segment.samples.length >= MIN_TRANSCRIBE_SAMPLES) {
           const text = await transcribe(segment.samples);
-          if (text) {
-            onTranscription?.(text);
-          }
-        } else if (audioBuffer.length > 0) {
-          // Fallback: use manually buffered audio
-          const totalLength = audioBuffer.reduce((sum, chunk) => sum + chunk.length, 0);
-          const combined = new Float32Array(totalLength);
-          let offset = 0;
-          for (const chunk of audioBuffer) {
-            combined.set(chunk, offset);
-            offset += chunk.length;
-          }
-          const text = await transcribe(combined);
           if (text) {
             onTranscription?.(text);
           }
         }
 
-        audioBuffer = [];
+        resetBufferedAudio();
         onStateChange?.("listening");
       }
     });
@@ -97,13 +176,21 @@ export async function startListening(
       if (isPaused) return;
 
       const inputData = event.inputBuffer.getChannelData(0);
-      const samples = new Float32Array(inputData);
+      const sourceRate = event.inputBuffer.sampleRate || audioContext?.sampleRate || TARGET_SAMPLE_RATE;
+      const rawSamples = new Float32Array(inputData);
+      const samples = resampleTo16k(rawSamples, sourceRate);
+      if (samples.length === 0) return;
 
       // Feed to VAD for speech detection
       VAD.processSamples(samples);
 
-      // Also buffer for fallback transcription
-      audioBuffer.push(samples);
+      // Buffer audio for periodic and final transcription.
+      pushBufferedAudio(samples);
+
+      // Long continuous speech should still emit incremental transcripts.
+      if (bufferedSampleCount >= LIVE_CHUNK_SAMPLES) {
+        void flushBufferedTranscription(MIN_TRANSCRIBE_SAMPLES);
+      }
     };
 
     source.connect(processorNode);
@@ -112,9 +199,28 @@ export async function startListening(
     isActive = true;
     onStateChange?.("listening");
   } catch (err) {
+    // Release partially initialized resources if startup fails.
+    processorNode?.disconnect();
+    processorNode = null;
+
+    if (audioContext) {
+      await audioContext.close();
+      audioContext = null;
+    }
+
+    if (mediaStream) {
+      mediaStream.getTracks().forEach((track) => track.stop());
+      mediaStream = null;
+    }
+
+    resetBufferedAudio();
+    isActive = false;
+    isPaused = false;
     console.error("[VAD] Failed to start listening:", err);
     onStateChange?.("idle");
     throw err;
+  } finally {
+    isStarting = false;
   }
 }
 
@@ -125,23 +231,9 @@ export async function stopListening(): Promise<void> {
   if (!isActive) return;
 
   // Process any remaining buffered audio
-  if (audioBuffer.length > 0) {
+  if (bufferedSampleCount > 0) {
     onStateChange?.("processing");
-    const totalLength = audioBuffer.reduce((sum, chunk) => sum + chunk.length, 0);
-
-    if (totalLength > 1600) {
-      // At least 0.1s of audio at 16kHz
-      const combined = new Float32Array(totalLength);
-      let offset = 0;
-      for (const chunk of audioBuffer) {
-        combined.set(chunk, offset);
-        offset += chunk.length;
-      }
-      const text = await transcribe(combined);
-      if (text) {
-        onTranscription?.(text);
-      }
-    }
+    await flushBufferedTranscription(MIN_TRANSCRIBE_SAMPLES);
   }
 
   // Cleanup
@@ -158,8 +250,11 @@ export async function stopListening(): Promise<void> {
     mediaStream = null;
   }
 
-  audioBuffer = [];
+  resetBufferedAudio();
   isActive = false;
+  isPaused = false;
+  flushRequested = false;
+  isFlushing = false;
   onStateChange?.("idle");
 }
 
