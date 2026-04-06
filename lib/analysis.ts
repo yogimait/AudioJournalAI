@@ -331,7 +331,8 @@ async function getSentiment(text: string): Promise<{ sentiment: Sentiment; score
 
 async function getEmotion(
   text: string,
-  sentiment: Sentiment
+  sentiment: Sentiment,
+  sentimentScore: number
 ): Promise<{ emotion: Emotion; confidence: number }> {
   if (!text.trim()) return { emotion: "neutral", confidence: 0 };
 
@@ -340,12 +341,33 @@ async function getEmotion(
     return lexiconEmotion;
   }
 
+  // Guardrail: avoid forcing negative/positive emotions on plain factual text.
+  if (!lexiconEmotion && sentiment === "neutral" && Math.abs(sentimentScore) < 0.22) {
+    return { emotion: "neutral", confidence: 0.6 };
+  }
+
   const embeddingResult = await getEmotionFromEmbedding(text);
-  if (embeddingResult.confidence >= 0.62) {
+  if (embeddingResult.confidence >= 0.68) {
+    const embeddingIsPositive = POSITIVE_EMOTIONS.has(embeddingResult.emotion);
+    const embeddingIsNegative = NEGATIVE_EMOTIONS.has(embeddingResult.emotion);
+
+    // Keep emotion polarity aligned with strong sentiment.
+    if (sentiment === "positive" && sentimentScore >= 0.25 && embeddingIsNegative) {
+      if (lexiconEmotion && POSITIVE_EMOTIONS.has(lexiconEmotion.emotion) && lexiconEmotion.confidence >= 0.45) {
+        return lexiconEmotion;
+      }
+      return { emotion: "joy", confidence: 0.55 };
+    }
+
+    if (sentiment === "negative" && sentimentScore <= -0.25 && embeddingIsPositive) {
+      if (lexiconEmotion && NEGATIVE_EMOTIONS.has(lexiconEmotion.emotion) && lexiconEmotion.confidence >= 0.45) {
+        return lexiconEmotion;
+      }
+      return { emotion: "stress", confidence: 0.55 };
+    }
+
     if (lexiconEmotion && lexiconEmotion.confidence >= 0.45) {
-      const embeddingIsPositive = POSITIVE_EMOTIONS.has(embeddingResult.emotion);
       const lexiconIsPositive = POSITIVE_EMOTIONS.has(lexiconEmotion.emotion);
-      const embeddingIsNegative = NEGATIVE_EMOTIONS.has(embeddingResult.emotion);
       const lexiconIsNegative = NEGATIVE_EMOTIONS.has(lexiconEmotion.emotion);
 
       if ((embeddingIsPositive && lexiconIsNegative) || (embeddingIsNegative && lexiconIsPositive)) {
@@ -360,11 +382,11 @@ async function getEmotion(
     return lexiconEmotion;
   }
 
-  if (sentiment === "positive") {
+  if (sentiment === "positive" && sentimentScore >= 0.28) {
     return { emotion: "joy", confidence: 0.45 };
   }
 
-  if (sentiment === "negative") {
+  if (sentiment === "negative" && sentimentScore <= -0.28) {
     return { emotion: "stress", confidence: 0.45 };
   }
 
@@ -377,7 +399,7 @@ export async function analyzeText(text: string): Promise<AnalysisResult> {
   const wordSet = new Set(words);
 
   const { sentiment, score: sentimentScore } = await getSentiment(text);
-  const { emotion, confidence: emotionConfidence } = await getEmotion(text, sentiment);
+  const { emotion, confidence: emotionConfidence } = await getEmotion(text, sentiment, sentimentScore);
 
   const wordFreq: Record<string, number> = {};
   for (const word of words) {

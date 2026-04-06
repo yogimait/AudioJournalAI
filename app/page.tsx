@@ -26,6 +26,7 @@ const POSITIVE_TEXT_HINTS = ["happy", "joy", "great", "love", "excited", "gratef
 const NEGATIVE_TEXT_HINTS = ["sad", "angry", "anxious", "stressed", "stress", "fear", "afraid", "worried", "upset"];
 const POSITIVE_EMOTIONS = new Set(["joy", "gratitude", "calm"]);
 const NEGATIVE_EMOTIONS = new Set(["sadness", "stress", "anxiety", "anger", "fear"]);
+const ANALYSIS_RULE_VERSION = "emotion-v3";
 
 function hasAnyHint(text: string, terms: string[]): boolean {
   const normalized = text.toLowerCase();
@@ -37,12 +38,18 @@ function needsAnalysisRefresh(entry: JournalEntry): boolean {
 
   const hasPositiveHint = hasAnyHint(entry.text, POSITIVE_TEXT_HINTS);
   const hasNegativeHint = hasAnyHint(entry.text, NEGATIVE_TEXT_HINTS);
+  const hasEmotionHint = hasPositiveHint || hasNegativeHint;
 
   if (hasPositiveHint && NEGATIVE_EMOTIONS.has(entry.emotion)) {
     return true;
   }
 
   if (hasNegativeHint && POSITIVE_EMOTIONS.has(entry.emotion)) {
+    return true;
+  }
+
+  // Re-evaluate factual/low-signal text that was assigned a strong non-neutral emotion.
+  if (!hasEmotionHint && entry.emotion !== "neutral" && Math.abs(entry.sentimentScore) < 0.22) {
     return true;
   }
 
@@ -179,13 +186,13 @@ export default function Home() {
 
     const refreshStaleAnalyses = async () => {
       const candidates = entries
-        .filter((entry) => !refreshedEntryIdsRef.current.has(entry.id))
+        .filter((entry) => !refreshedEntryIdsRef.current.has(`${ANALYSIS_RULE_VERSION}:${entry.id}`))
         .filter(needsAnalysisRefresh)
         .slice(0, 5);
 
       for (const entry of candidates) {
         if (cancelled) return;
-        refreshedEntryIdsRef.current.add(entry.id);
+        refreshedEntryIdsRef.current.add(`${ANALYSIS_RULE_VERSION}:${entry.id}`);
 
         try {
           const analysis = await analyzeText(entry.text);

@@ -27,6 +27,10 @@ const EMOTION_KEYWORDS: Record<string, { emotion: Emotion; weight: number }[]> =
   fun: [{ emotion: "joy", weight: 0.6 }],
   enjoy: [{ emotion: "joy", weight: 0.6 }],
   delight: [{ emotion: "joy", weight: 0.8 }],
+  love: [{ emotion: "joy", weight: 0.95 }, { emotion: "gratitude", weight: 0.7 }],
+  bright: [{ emotion: "joy", weight: 0.55 }, { emotion: "calm", weight: 0.45 }],
+  brightly: [{ emotion: "joy", weight: 0.55 }, { emotion: "calm", weight: 0.45 }],
+  shining: [{ emotion: "joy", weight: 0.5 }, { emotion: "calm", weight: 0.5 }],
 
   // Gratitude
   grateful: [{ emotion: "gratitude", weight: 1.0 }],
